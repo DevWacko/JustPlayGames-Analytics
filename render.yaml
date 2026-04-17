@@ -1,0 +1,16 @@
+services:
+  - type: worker
+    name: roblox-sales-bot
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: DISCORD_TOKEN
+      - key: DISCORD_CLIENT_ID
+      - key: DISCORD_GUILD_ID
+      - key: DISCORD_CHANNEL_ID
+      - key: ROBLOX_COOKIE
+      - key: ROBLOX_GROUP_ID
