@@ -139,8 +139,16 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
 
 /* Results */
 .score { font-family: var(--display); font-weight: 800; font-size: clamp(56px, 14vw, 96px); line-height: 1; font-variant-numeric: tabular-nums; }
-.verdict { font-family: var(--display); font-size: 24px; font-weight: 700; margin: 4px 0 18px; }
+.verdict { font-family: var(--display); font-size: 24px; font-weight: 700; margin: 4px 0 14px; }
 .verdict.good { color: var(--good); } .verdict.bad { color: var(--bad); }
+.passbox { display: flex; gap: 16px; align-items: center; border-radius: 12px; padding: 16px 18px; border: 2px solid; margin: 0 0 10px; max-width: 640px; }
+.passbox.good { border-color: var(--good); background: var(--good-bg); }
+.passbox.bad { border-color: var(--bad); background: var(--bad-bg); }
+.passbox .stamp { font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: .06em; padding: 2px 12px; border: 3px solid; border-radius: 8px; transform: rotate(-4deg); flex: none; }
+.passbox.good .stamp { color: var(--good); } .passbox.bad .stamp { color: var(--bad); }
+.passbox strong { font-size: 18px; } .passbox p { margin: 2px 0 0; font-size: 15px; }
+.passmark { color: var(--muted); font-size: 14px; margin: 0 0 18px; max-width: 640px; }
+.passmark select { font: inherit; padding: 4px 6px; border-radius: 6px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
 .review { display: grid; gap: 12px; margin-top: 24px; }
 .ritem { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; gap: 14px; }
 .ritem .mini { width: 64px; flex: none; }
@@ -166,6 +174,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
   .qcard { padding: 16px; }
   .qtext { font-size: 19px; }
   .ritem { flex-direction: column; }
+  .passbox { flex-direction: column; align-items: flex-start; }
 }
 </style>
 </head>
@@ -321,11 +330,24 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
     if (catById[state.kind] && done === state.items.length) {
       store.best[state.kind] = Math.max(store.best[state.kind] || 0, pct); save();
     }
-    var good = pct >= 80;
+    var pm = store.passMark || 80;
+    var needed = Math.ceil(done * pm / 100), pass = done > 0 && right >= needed;
     var h = '<div class="quiz-top"><span class="label">' + esc(state.title) + ' · Results</span></div>';
     h += '<div class="score">' + right + '/' + done + '</div>';
-    h += '<div class="verdict ' + (good ? "good" : "bad") + '">' + pct + '% · ' + (done === 0 ? "No questions answered" : good ? "Well done. Keep it up!" : "Keep practising. Review the answers below.") + '</div>';
-    if (done < state.items.length) h += '<p class="sub">You answered ' + done + ' of ' + state.items.length + ' questions.</p>';
+    h += '<div class="verdict ' + (pass ? "good" : "bad") + '">' + pct + '% correct</div>';
+    if (done > 0) {
+      h += '<div class="passbox ' + (pass ? "good" : "bad") + '" role="status"><span class="stamp">' + (pass ? "PASS" : "FAIL") + '</span><div><strong>' +
+        (pass ? "You would pass the real test with this score." : "You would not pass the real test with this score.") + '</strong><p>' +
+        (pass ? "You needed " + needed + " correct out of " + done + " and got " + right + "."
+              : "You needed " + needed + " correct out of " + done + " and got " + right + ". That is " + (needed - right) + " short.") +
+        (done < state.items.length ? " This is based only on the " + done + " of " + state.items.length + " questions you answered; in the real test, unanswered questions count as wrong." : "") +
+        '</p></div></div>';
+      h += '<p class="passmark"><label for="passMark">Pass mark used:</label> <select id="passMark">';
+      [60, 70, 75, 80, 85, 90, 100].forEach(function (v) { h += '<option value="' + v + '"' + (v === pm ? " selected" : "") + '>' + v + '%</option>'; });
+      h += '</select> The Licensing Division does not publish its pass mark online, so 80% is an estimate. If your Licensing Office tells you a different one, change it here.</p>';
+    } else {
+      h += '<p class="sub">You did not answer any questions, so there is no pass or fail result.</p>';
+    }
     h += '<div class="row" style="display:flex;gap:10px;flex-wrap:wrap">' +
       (wrongs.length ? '<button class="btn primary" id="retryWrong" type="button">Retry the ' + wrongs.length + ' I got wrong</button>' : "") +
       '<button class="btn" id="again" type="button">Start again</button><button class="btn" id="home2" type="button">All categories</button></div>';
@@ -343,6 +365,8 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
     if (wrongs.length) document.getElementById("retryWrong").onclick = function () { start(prev.kind, shuffle(wrongs.map(function (w) { return w.q; })), prev.title + " · retry"); };
     document.getElementById("again").onclick = function () { start(prev.kind, shuffle(prev.items.map(function (it) { return it.q; })), prev.title); };
     document.getElementById("home2").onclick = home;
+    var pmSel = document.getElementById("passMark");
+    if (pmSel) pmSel.onchange = function () { store.passMark = +pmSel.value; save(); results(); };
     window.scrollTo(0, 0);
   }
 
