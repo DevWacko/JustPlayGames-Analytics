@@ -107,7 +107,6 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
 .qnum { font-family: var(--display); font-weight: 700; color: var(--accent); font-size: 16px; letter-spacing: .06em; }
 .qtext { font-size: 21px; font-weight: 600; margin: 4px 0 16px; line-height: 1.35; text-wrap: pretty; }
 .qimg { width: 150px; max-width: 100%; margin: 0 0 16px; }
-.qimg svg { width: 100%; height: auto; display: block; }
 .opts { display: grid; gap: 10px; }
 .opt {
   display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%;
@@ -152,7 +151,6 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
 .review { display: grid; gap: 12px; margin-top: 24px; }
 .ritem { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; gap: 14px; }
 .ritem .mini { width: 64px; flex: none; }
-.ritem .mini svg { width: 100%; height: auto; }
 .ritem .body { min-width: 0; }
 .ritem .q { font-weight: 600; margin-bottom: 4px; }
 .ritem .a { font-size: 15px; }
@@ -160,6 +158,19 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
 .ritem .a.ok { color: var(--good); }
 .ritem .e { font-size: 15px; color: var(--muted); margin-top: 4px; }
 
+.guides { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 20px; }
+.guide { text-align: left; background: var(--surface); border: 2px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer; display: flex; flex-direction: column; }
+.guide b { font-family: var(--display); font-size: 20px; line-height: 1.15; }
+.guide span { font-size: 14px; color: var(--muted); }
+.guide[aria-pressed="true"] { border-color: var(--stripe); background: color-mix(in srgb, var(--stripe) 14%, var(--surface)); }
+.cats + h2 { margin-top: 30px; }
+.qimg img, .mini img, .signgrid img { display: block; background: #fff; border-radius: 10px; padding: 6px; border: 1px solid var(--line); max-width: 100%; height: auto; }
+.signgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.signgrid figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.signgrid figcaption { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.sopts { margin: 6px 0 0; padding-left: 22px; list-style: lower-alpha; font-size: 15px; display: grid; gap: 3px; }
+.sopts li.ok { color: var(--good); font-weight: 600; }
+.sopts .tick { font-size: 13px; white-space: nowrap; }
 /* Study list */
 .study { display: grid; gap: 10px; }
 .filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
@@ -182,121 +193,167 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
 <header class="road">
   <div class="wrap">
     <button class="home-link" id="homeLink" type="button" aria-label="Back to categories">
-      <div class="eyebrow">Licensing Division · Regulations Exam Practice</div>
+      <div class="eyebrow">Trinidad &amp; Tobago · Regulations Exam Practice</div>
       <h1>T&amp;T Regulations Test Trainer</h1>
     </button>
-    <p>Multiple-choice practice for the Trinidad and Tobago driver's regulations test: rules of the road, traffic signs, road markings, hand signals and more.</p>
+    <p>Multiple-choice practice for the Trinidad and Tobago driver's regulations test, using the questions, road signs and hand signals from the study guide.</p>
   </div>
 </header>
 
 <main><div class="wrap" id="app"></div></main>
 
-<script src="questions.js"></script>
-<script src="signs.js"></script>
+<script src="data.js"></script>
 <script>
 (function () {
   var app = document.getElementById("app");
-  var CATS = window.CATEGORIES, QS = window.QUESTIONS;
-  QS.forEach(function (q, i) { q.id = i; });
-  var catById = {}; CATS.forEach(function (c) { catById[c.id] = c; });
-  var MOCK_SIZE = 25;
-  var LETTERS = ["A", "B", "C", "D", "E"];
+  var GUIDES = window.GUIDES, SIGNS = window.SIGNS, HANDS = window.HANDS;
+  var LETTERS = ["A", "B", "C", "D"];
+  var MOCK = { mcq: 14, signs: 12, hands: 4 };
+  var SIGN_GROUPS = [
+    { id: "warning", name: "Danger Warning Signs", blurb: "Red triangles and other signs that warn of a hazard ahead." },
+    { id: "regulatory", name: "Regulatory Signs", blurb: "Signs that give orders: stop, give way, no entry, speed limits." },
+    { id: "info", name: "Informative Signs", blurb: "Signs that give information and directions." }
+  ];
 
   /* ---------- saved progress (this browser only) ---------- */
-  var store = { seen: {}, missed: {}, best: {} };
-  try { var raw = localStorage.getItem("tt-regs-v1"); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch (e) {}
-  function save() { try { localStorage.setItem("tt-regs-v1", JSON.stringify(store)); } catch (e) {} }
+  var store = { seen: {}, missed: {}, best: {}, guide: "light", passMark: 80 };
+  try { var raw = localStorage.getItem("tt-regs-v2"); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch (e) {}
+  function save() { try { localStorage.setItem("tt-regs-v2", JSON.stringify(store)); } catch (e) {} }
 
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-  function inCat(id) { return QS.filter(function (q) { return q.c === id; }); }
-  function mastered(id) { return inCat(id).filter(function (q) { return store.seen[q.id] === 1; }).length; }
+  function guide() { for (var i = 0; i < GUIDES.length; i++) if (GUIDES[i].id === store.guide) return GUIDES[i]; return GUIDES[0]; }
 
-  var state = null; // current quiz
+  /* ---------- question builders ---------- */
+  // Every question: { id, kind, q, img?, o:[...], a:index of correct, tip?, label }
+  function mcqQ(g, m) { return { id: g.id + ":" + m.n, kind: "mcq", q: m.q, o: m.o, a: m.a, label: "Study guide no. " + m.n }; }
+  function signQ(i) {
+    var s = SIGNS[i], names = [], seen = {}; seen[s.name] = 1;
+    shuffle(SIGNS.filter(function (x) { return x.g === s.g; })).forEach(function (x) { if (!seen[x.name] && names.length < 3) { seen[x.name] = 1; names.push(x.name); } });
+    var o = shuffle([s.name].concat(names));
+    return { id: "sign:" + i, kind: "sign", q: "What does this road sign mean?", img: s.img, alt: "Road sign", o: o, a: o.indexOf(s.name), label: SIGN_GROUPS.filter(function (x) { return x.id === s.g; })[0].name };
+  }
+  function handQ(i) {
+    var h = HANDS.signals[i], order = shuffle([0, 1, 2, 3]);
+    return { id: "hand:" + i, kind: "hand", q: "How do you signal that " + h.lead + "?", o: order.map(function (k) { return HANDS.options[k]; }), a: order.indexOf(h.a), tip: h.tip, label: "Hand Signals" };
+  }
+  function range(n) { var r = []; for (var i = 0; i < n; i++) r.push(i); return r; }
+  function signIdx(g) { return range(SIGNS.length).filter(function (i) { return SIGNS[i].g === g; }); }
+
+  /* ---------- categories for the chosen study guide ---------- */
+  function categories() {
+    var g = guide(), n = g.mcq.length, parts = Math.round(n / 21), size = Math.ceil(n / parts), cats = [];
+    cats.push({ id: g.id + ":mcq", group: "mcq", name: "All " + n + " questions", blurb: "Every multiple choice question in the study guide, in order.",
+      ids: g.mcq.map(function (m) { return g.id + ":" + m.n; }), build: function () { return g.mcq.map(function (m) { return mcqQ(g, m); }); } });
+    for (var p = 0; p < parts; p++) (function (p) {
+      var slice = g.mcq.slice(p * size, (p + 1) * size);
+      cats.push({ id: g.id + ":mcq" + (p + 1), group: "mcq", name: "Questions " + slice[0].n + "–" + slice[slice.length - 1].n, blurb: "A shorter set, so you can learn the guide a part at a time.",
+        ids: slice.map(function (m) { return g.id + ":" + m.n; }), build: function () { return slice.map(function (m) { return mcqQ(g, m); }); } });
+    })(p);
+    SIGN_GROUPS.forEach(function (sg) {
+      var idx = signIdx(sg.id);
+      cats.push({ id: "signs:" + sg.id, group: "signs", name: sg.name, blurb: sg.blurb, signs: idx,
+        ids: idx.map(function (i) { return "sign:" + i; }), build: function () { return shuffle(idx).map(signQ); } });
+    });
+    cats.push({ id: "hands", group: "hands", name: "Hand Signals", blurb: "The six driver's hand signals and how each one is given.", hands: true,
+      ids: range(HANDS.signals.length).map(function (i) { return "hand:" + i; }), build: function () { return shuffle(range(HANDS.signals.length)).map(handQ); } });
+    return cats;
+  }
+  function allIds() { var g = guide(); return g.mcq.map(function (m) { return g.id + ":" + m.n; }).concat(range(SIGNS.length).map(function (i) { return "sign:" + i; }), range(HANDS.signals.length).map(function (i) { return "hand:" + i; })); }
+  function buildById(id) {
+    var p = id.split(":"), g = guide();
+    if (p[0] === "sign") return signQ(+p[1]);
+    if (p[0] === "hand") return handQ(+p[1]);
+    var m = g.mcq.filter(function (m) { return m.n === +p[1]; })[0];
+    return m && p[0] === g.id ? mcqQ(g, m) : null;
+  }
+  function countRight(ids) { return ids.filter(function (id) { return store.seen[id] === 1; }).length; }
+
+  var state = null;
 
   /* ---------- HOME ---------- */
   function home() {
     state = null;
-    var missedCount = Object.keys(store.missed).length;
-    var totalMastered = QS.filter(function (q) { return store.seen[q.id] === 1; }).length;
-    var h = '<div class="stats"><span><b>' + QS.length + '</b>questions</span><span><b>' + CATS.length + '</b>categories</span><span><b>' + totalMastered +
-      '</b>answered correctly</span><span><b>' + missedCount + '</b>to review</span></div>';
-    h += '<div class="big-actions">' +
-      '<button class="btn primary" id="mockBtn" type="button">Take a mock test<small>' + MOCK_SIZE + ' random questions from every category</small></button>' +
-      '<button class="btn" id="allBtn" type="button">Practise all questions<small>All ' + QS.length + ' questions, shuffled</small></button>' +
-      '<button class="btn" id="missBtn" type="button"' + (missedCount ? "" : " disabled") + '>Review my mistakes<small>' + (missedCount ? missedCount + " question" + (missedCount > 1 ? "s" : "") + " you got wrong" : "Nothing to review yet") + '</small></button>' +
-      '</div>';
-    h += '<h2>Choose a category</h2><p class="sub">Practise one topic at a time, or open the study list to read every question with its answer.</p><div class="cats">';
-    CATS.forEach(function (c) {
-      var n = inCat(c.id).length, m = mastered(c.id), best = store.best[c.id];
-      h += '<article class="cat"><h3>' + esc(c.name) + '</h3><p>' + esc(c.blurb) + '</p>' +
-        '<div class="meta"><span>' + n + ' questions</span><span>' + (best != null ? "Best " + best + "%" : "Not tried") + '</span></div>' +
-        '<div class="bar" aria-label="' + m + " of " + n + ' answered correctly"><i style="width:' + Math.round(m / n * 100) + '%"></i></div>' +
-        '<div class="row"><button class="btn primary" data-quiz="' + c.id + '" type="button">Practise</button><button class="btn" data-study="' + c.id + '" type="button">Study list</button></div></article>';
+    var g = guide(), cats = categories(), ids = allIds();
+    var missed = ids.filter(function (id) { return store.missed[id]; });
+    var h = '<div class="guides" role="group" aria-label="Which test are you studying for?">';
+    GUIDES.forEach(function (x) {
+      h += '<button class="guide" type="button" data-guide="' + x.id + '" aria-pressed="' + (x.id === g.id) + '"><b>' + esc(x.name) + '</b><span>' + esc(x.cls) + ' · ' + x.mcq.length + ' questions</span></button>';
     });
     h += '</div>';
-    h += '<p class="note">These questions are based on the Trinidad and Tobago Highway Code and the Motor Vehicles and Road Traffic Act. They are written for practice, not copied from the Licensing Division\'s own booklet, so always check against the official study guide and Highway Code sold at the Licensing Office. Your progress is saved in this browser only. ' +
+    h += '<div class="stats"><span><b>' + g.mcq.length + '</b>multiple choice</span><span><b>' + SIGNS.length + '</b>road signs</span><span><b>' + HANDS.signals.length +
+      '</b>hand signals</span><span><b>' + countRight(ids) + '</b>answered correctly</span><span><b>' + missed.length + '</b>to review</span></div>';
+    var mockN = MOCK.mcq + MOCK.signs + MOCK.hands;
+    h += '<div class="big-actions">' +
+      '<button class="btn primary" id="mockBtn" type="button">Take a mock test<small>' + mockN + ' questions: ' + MOCK.mcq + ' multiple choice, ' + MOCK.signs + ' road signs, ' + MOCK.hands + ' hand signals</small></button>' +
+      '<button class="btn" id="allBtn" type="button">Practise everything<small>All ' + ids.length + ' questions, signs and signals, shuffled</small></button>' +
+      '<button class="btn" id="missBtn" type="button"' + (missed.length ? "" : " disabled") + '>Review my mistakes<small>' + (missed.length ? missed.length + " you got wrong" : "Nothing to review yet") + '</small></button></div>';
+    [["mcq", "Multiple choice questions", "The questions and answers from the " + g.cls + " study guide. Options appear in the same order as the guide."],
+     ["signs", "Road signs", "All " + SIGNS.length + " road signs from the study guide."],
+     ["hands", "Hand signals", ""]].forEach(function (sec) {
+      h += '<h2>' + sec[1] + '</h2>' + (sec[2] ? '<p class="sub">' + esc(sec[2]) + '</p>' : '<p class="sub"></p>') + '<div class="cats">';
+      cats.filter(function (c) { return c.group === sec[0]; }).forEach(function (c) {
+        var n = c.ids.length, m = countRight(c.ids), best = store.best[c.id];
+        h += '<article class="cat"><h3>' + esc(c.name) + '</h3><p>' + esc(c.blurb) + '</p>' +
+          '<div class="meta"><span>' + n + (c.group === "signs" ? " signs" : c.group === "hands" ? " signals" : " questions") + '</span><span>' + (best != null ? "Best " + best + "%" : "Not tried") + '</span></div>' +
+          '<div class="bar" aria-label="' + m + " of " + n + ' answered correctly"><i style="width:' + Math.round(m / n * 100) + '%"></i></div>' +
+          '<div class="row"><button class="btn primary" data-quiz="' + c.id + '" type="button">Practise</button><button class="btn" data-study="' + c.id + '" type="button">Study list</button></div></article>';
+      });
+      h += '</div>';
+    });
+    h += '<p class="note">The questions, answers, road signs and hand signals are taken from the TTRegs.com printable study guides. They are for your own study. Your progress is saved in this browser only. ' +
       '<button class="chip" id="resetBtn" type="button">Reset progress</button></p>';
     app.innerHTML = h;
-    document.getElementById("mockBtn").onclick = function () { start("mock", shuffle(QS).slice(0, MOCK_SIZE), "Mock test"); };
-    document.getElementById("allBtn").onclick = function () { start("all", shuffle(QS), "All questions"); };
-    document.getElementById("missBtn").onclick = function () {
-      var list = QS.filter(function (q) { return store.missed[q.id]; });
-      if (list.length) start("missed", shuffle(list), "Review my mistakes");
+
+    app.querySelectorAll("[data-guide]").forEach(function (b) { b.onclick = function () { store.guide = b.dataset.guide; save(); home(); }; });
+    document.getElementById("mockBtn").onclick = function () {
+      var list = shuffle(g.mcq).slice(0, MOCK.mcq).map(function (m) { return mcqQ(g, m); })
+        .concat(shuffle(range(SIGNS.length)).slice(0, MOCK.signs).map(signQ), shuffle(range(HANDS.signals.length)).slice(0, MOCK.hands).map(handQ));
+      start("mock", list, "Mock test");
     };
+    document.getElementById("allBtn").onclick = function () { start("all", shuffle(ids.map(buildById)), "Practise everything"); };
+    document.getElementById("missBtn").onclick = function () { if (missed.length) start("missed", shuffle(missed.map(buildById)), "Review my mistakes"); };
     var rb = document.getElementById("resetBtn");
     rb.onclick = function () {
-      if (rb.dataset.armed) { store = { seen: {}, missed: {}, best: {} }; save(); home(); }
+      if (rb.dataset.armed) { store.seen = {}; store.missed = {}; store.best = {}; save(); home(); }
       else { rb.dataset.armed = "1"; rb.textContent = "Tap again to erase all progress"; }
     };
     app.querySelectorAll("[data-quiz]").forEach(function (b) {
-      b.onclick = function () { var id = b.dataset.quiz; start(id, shuffle(inCat(id)), catById[id].name); };
+      b.onclick = function () { var c = cats.filter(function (c) { return c.id === b.dataset.quiz; })[0]; start(c.id, c.build(), c.name); };
     });
     app.querySelectorAll("[data-study]").forEach(function (b) { b.onclick = function () { study(b.dataset.study); }; });
     window.scrollTo(0, 0);
   }
 
   /* ---------- QUIZ ---------- */
-  function start(kind, list, title) {
-    state = {
-      kind: kind, title: title, i: 0, answers: [],
-      items: list.map(function (q) {
-        var order = shuffle(q.o.map(function (_, k) { return k; }));
-        return { q: q, order: order };
-      })
-    };
-    renderQ();
-  }
+  function start(kind, list, title) { state = { kind: kind, title: title, i: 0, answers: [], items: list.filter(Boolean) }; renderQ(); }
 
   function renderQ() {
-    var it = state.items[state.i], q = it.q, a = state.answers[state.i];
-    var answered = a != null, n = state.items.length;
+    var q = state.items[state.i], a = state.answers[state.i], answered = a != null, n = state.items.length;
     var h = '<div class="quiz-top"><span class="label">' + esc(state.title) + '</span><button class="btn" id="quitBtn" type="button">End &amp; see results</button></div>';
     h += '<div class="progress" aria-hidden="true"><i style="width:' + ((state.i + (answered ? 1 : 0)) / n * 100) + '%"></i></div>';
-    h += '<section class="qcard" aria-live="polite"><div class="qnum">QUESTION ' + (state.i + 1) + ' OF ' + n +
-      (!catById[state.kind] ? " · " + esc(catById[q.c].name.toUpperCase()) : "") + '</div>';
+    h += '<section class="qcard" aria-live="polite"><div class="qnum">QUESTION ' + (state.i + 1) + ' OF ' + n + ' · ' + esc(q.label.toUpperCase()) + '</div>';
     h += '<div class="qtext">' + esc(q.q) + '</div>';
-    if (q.img) h += '<div class="qimg">' + window.SIGN(q.img) + '</div>';
+    if (q.img) h += '<div class="qimg"><img src="' + q.img + '" alt="' + esc(q.alt) + '" width="150" height="150"></div>';
     h += '<div class="opts">';
-    it.order.forEach(function (orig, k) {
+    q.o.forEach(function (text, k) {
       var cls = "", tag = "";
       if (answered) {
-        if (orig === 0) { cls = " correct"; tag = a === orig ? "Your answer ✓" : "Correct answer"; }
-        else if (a === orig) { cls = " wrong"; tag = "Your answer ✗"; }
+        if (k === q.a) { cls = " correct"; tag = a === k ? "Your answer ✓" : "Correct answer"; }
+        else if (a === k) { cls = " wrong"; tag = "Your answer ✗"; }
       }
-      h += '<button class="opt' + cls + '" type="button" data-k="' + orig + '"' + (answered ? " disabled" : "") + '><span class="key">' + LETTERS[k] + '</span><span>' + esc(q.o[orig]) + '</span>' + (tag ? '<span class="tag">' + tag + '</span>' : "") + '</button>';
+      h += '<button class="opt' + cls + '" type="button" data-k="' + k + '"' + (answered ? " disabled" : "") + '><span class="key">' + LETTERS[k] + '</span><span>' + esc(text) + '</span>' + (tag ? '<span class="tag">' + tag + '</span>' : "") + '</button>';
     });
     h += '</div>';
     if (answered) {
-      var ok = a === 0;
+      var ok = a === q.a;
       h += '<div class="feedback ' + (ok ? "good" : "bad") + '"><strong>' + (ok ? "Correct!" : "Wrong") + '</strong>' +
-        (ok ? "" : '<p>The correct answer is: <b>' + esc(q.o[0]) + '</b></p>') + (q.e ? '<p>' + esc(q.e) + '</p>' : "") + '</div>';
+        (ok ? "" : '<p>The correct answer is ' + LETTERS[q.a] + ': <b>' + esc(q.o[q.a]) + '</b></p>') + (q.tip ? '<p>Tip: ' + esc(q.tip) + '</p>' : "") + '</div>';
     }
     h += '<div class="qnav"><button class="btn" id="prevBtn" type="button"' + (state.i === 0 ? " disabled" : "") + '>← Previous</button>' +
       '<button class="btn primary" id="nextBtn" type="button"' + (answered ? "" : " disabled") + '>' + (state.i === n - 1 ? "See results" : "Next question →") + '</button></div>';
     h += '</section><p class="hint">Tip: press 1–4 (or A–D) to answer and Enter for the next question.</p>';
     app.innerHTML = h;
-
     app.querySelectorAll(".opt").forEach(function (b) { b.onclick = function () { choose(+b.dataset.k); }; });
     document.getElementById("prevBtn").onclick = function () { if (state.i > 0) { state.i--; renderQ(); } };
     document.getElementById("nextBtn").onclick = next;
@@ -304,15 +361,12 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
     var top = app.querySelector(".quiz-top");
     if (top.getBoundingClientRect().top < 0) top.scrollIntoView();
   }
-
-  function choose(orig) {
+  function choose(k) {
     if (state.answers[state.i] != null) return;
-    var q = state.items[state.i].q;
-    state.answers[state.i] = orig;
-    if (orig === 0) { store.seen[q.id] = 1; delete store.missed[q.id]; }
-    else { store.seen[q.id] = 0; store.missed[q.id] = 1; }
-    save();
-    renderQ();
+    var q = state.items[state.i];
+    state.answers[state.i] = k;
+    if (k === q.a) { store.seen[q.id] = 1; delete store.missed[q.id]; } else { store.seen[q.id] = 0; store.missed[q.id] = 1; }
+    save(); renderQ();
   }
   function next() {
     if (state.answers[state.i] == null) return;
@@ -322,14 +376,12 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
   /* ---------- RESULTS ---------- */
   function results() {
     var done = 0, right = 0, wrongs = [];
-    state.items.forEach(function (it, i) {
+    state.items.forEach(function (q, i) {
       var a = state.answers[i]; if (a == null) return;
-      done++; if (a === 0) right++; else wrongs.push({ q: it.q, a: a });
+      done++; if (a === q.a) right++; else wrongs.push({ q: q, a: a });
     });
     var pct = done ? Math.round(right / done * 100) : 0;
-    if (catById[state.kind] && done === state.items.length) {
-      store.best[state.kind] = Math.max(store.best[state.kind] || 0, pct); save();
-    }
+    if (state.kind.indexOf(":") > 0 || state.kind === "hands") { if (done === state.items.length) { store.best[state.kind] = Math.max(store.best[state.kind] || 0, pct); save(); } }
     var pm = store.passMark || 80;
     var needed = Math.ceil(done * pm / 100), pass = done > 0 && right >= needed;
     var h = '<div class="quiz-top"><span class="label">' + esc(state.title) + ' · Results</span></div>';
@@ -338,8 +390,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
     if (done > 0) {
       h += '<div class="passbox ' + (pass ? "good" : "bad") + '" role="status"><span class="stamp">' + (pass ? "PASS" : "FAIL") + '</span><div><strong>' +
         (pass ? "You would pass the real test with this score." : "You would not pass the real test with this score.") + '</strong><p>' +
-        (pass ? "You needed " + needed + " correct out of " + done + " and got " + right + "."
-              : "You needed " + needed + " correct out of " + done + " and got " + right + ". That is " + (needed - right) + " short.") +
+        "You needed " + needed + " correct out of " + done + " and got " + right + "." + (pass ? "" : " That is " + (needed - right) + " short.") +
         (done < state.items.length ? " This is based only on the " + done + " of " + state.items.length + " questions you answered; in the real test, unanswered questions count as wrong." : "") +
         '</p></div></div>';
       h += '<p class="passmark"><label for="passMark">Pass mark used:</label> <select id="passMark">';
@@ -354,16 +405,17 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
     if (wrongs.length) {
       h += '<h2 style="margin-top:28px">Questions you got wrong</h2><div class="review">';
       wrongs.forEach(function (w) {
-        h += '<div class="ritem">' + (w.q.img ? '<div class="mini">' + window.SIGN(w.q.img) + '</div>' : "") + '<div class="body"><div class="q">' + esc(w.q.q) + '</div>' +
-          '<div class="a you">Your answer: ' + esc(w.q.o[w.a]) + '</div><div class="a ok">Correct answer: ' + esc(w.q.o[0]) + '</div>' +
-          (w.q.e ? '<div class="e">' + esc(w.q.e) + '</div>' : "") + '</div></div>';
+        h += '<div class="ritem">' + (w.q.img ? '<div class="mini"><img src="' + w.q.img + '" alt="Road sign" width="64" height="64"></div>' : "") + '<div class="body"><div class="q">' + esc(w.q.q) + '</div>' +
+          '<div class="a you">Your answer: ' + esc(w.q.o[w.a]) + '</div><div class="a ok">Correct answer: ' + esc(w.q.o[w.q.a]) + '</div>' +
+          (w.q.tip ? '<div class="e">Tip: ' + esc(w.q.tip) + '</div>' : "") + '</div></div>';
       });
       h += '</div>';
     }
     app.innerHTML = h;
     var prev = state;
-    if (wrongs.length) document.getElementById("retryWrong").onclick = function () { start(prev.kind, shuffle(wrongs.map(function (w) { return w.q; })), prev.title + " · retry"); };
-    document.getElementById("again").onclick = function () { start(prev.kind, shuffle(prev.items.map(function (it) { return it.q; })), prev.title); };
+    function rebuild(list) { return list.map(function (q) { return q.kind === "mcq" ? q : buildById(q.id); }); }
+    if (wrongs.length) document.getElementById("retryWrong").onclick = function () { start("retry", shuffle(rebuild(wrongs.map(function (w) { return w.q; }))), prev.title.replace(/ · retry$/, "") + " · retry"); };
+    document.getElementById("again").onclick = function () { start(prev.kind, prev.kind.indexOf(":mcq") > 0 ? prev.items : shuffle(rebuild(prev.items)), prev.title); };
     document.getElementById("home2").onclick = home;
     var pmSel = document.getElementById("passMark");
     if (pmSel) pmSel.onchange = function () { store.passMark = +pmSel.value; save(); results(); };
@@ -373,19 +425,35 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0
   /* ---------- STUDY LIST ---------- */
   function study(catId) {
     state = null;
+    var cats = categories(), c = cats.filter(function (x) { return x.id === catId; })[0] || cats[0];
     var h = '<div class="quiz-top"><span class="label">Study list</span><button class="btn" id="back" type="button">← Categories</button></div>';
-    h += '<h2>' + esc(catById[catId].name) + '</h2><p class="sub">Read each question, then open the answer. When you feel ready, practise with the multiple-choice quiz.</p>';
+    h += '<h2>' + esc(c.name) + '</h2><p class="sub">' + (c.group === "mcq" ? "The correct answer to each question is marked in green, as in the study guide." : c.group === "signs" ? "Learn the name of each sign." : "Learn how each signal is given.") + '</p>';
     h += '<div class="filter">';
-    CATS.forEach(function (c) { h += '<button class="chip" type="button" data-cat="' + c.id + '" aria-pressed="' + (c.id === catId) + '">' + esc(c.name) + '</button>'; });
-    h += '</div><div class="study">';
-    inCat(catId).forEach(function (q, i) {
-      h += '<div class="ritem">' + (q.img ? '<div class="mini">' + window.SIGN(q.img) + '</div>' : "") + '<div class="body"><div class="q">' + (i + 1) + '. ' + esc(q.q) + '</div>' +
-        '<details class="reveal"><summary>Show answer</summary><div class="a ok"><b>' + esc(q.o[0]) + '</b></div>' + (q.e ? '<div class="e">' + esc(q.e) + '</div>' : "") + '</details></div></div>';
-    });
-    h += '</div><div class="qnav"><button class="btn primary" id="practise" type="button">Practise this category</button></div>';
+    cats.forEach(function (x) { h += '<button class="chip" type="button" data-cat="' + x.id + '" aria-pressed="' + (x.id === c.id) + '">' + esc(x.name) + '</button>'; });
+    h += '</div>';
+    if (c.group === "mcq") {
+      h += '<div class="study">';
+      c.build().forEach(function (q) {
+        h += '<div class="ritem"><div class="body"><div class="q">' + q.id.split(":")[1] + '. ' + esc(q.q) + '</div><ol class="sopts">';
+        q.o.forEach(function (o, k) { h += '<li' + (k === q.a ? ' class="ok"' : "") + '>' + esc(o) + (k === q.a ? ' <span class="tick">✓ correct</span>' : "") + '</li>'; });
+        h += '</ol></div></div>';
+      });
+      h += '</div>';
+    } else if (c.group === "signs") {
+      h += '<div class="signgrid">';
+      c.signs.forEach(function (i) { h += '<figure><img src="' + SIGNS[i].img + '" alt="" width="110" height="110"><figcaption>' + esc(SIGNS[i].name) + '</figcaption></figure>'; });
+      h += '</div>';
+    } else {
+      h += '<div class="study">';
+      HANDS.signals.forEach(function (s) {
+        h += '<div class="ritem"><div class="body"><div class="q">' + esc(s.name) + '</div><div class="a">To signal that ' + esc(s.lead) + ': ' + esc(HANDS.options[s.a]) + '</div>' + (s.tip ? '<div class="e">Tip: ' + esc(s.tip) + '</div>' : "") + '</div></div>';
+      });
+      h += '</div>';
+    }
+    h += '<div class="qnav"><button class="btn primary" id="practise" type="button">Practise this category</button></div>';
     app.innerHTML = h;
     document.getElementById("back").onclick = home;
-    document.getElementById("practise").onclick = function () { start(catId, shuffle(inCat(catId)), catById[catId].name); };
+    document.getElementById("practise").onclick = function () { start(c.id, c.build(), c.name); };
     app.querySelectorAll("[data-cat]").forEach(function (b) { b.onclick = function () { study(b.dataset.cat); }; });
     window.scrollTo(0, 0);
   }
