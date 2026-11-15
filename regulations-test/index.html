@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>T&amp;T Regulations Test Trainer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: a single column "lane" with a road-stripe header; cards only for choices. */
+:root {
+  --bg: #f3f4f1;
+  --surface: #ffffff;
+  --ink: #16191f;
+  --muted: #5d6470;
+  --line: #d9dcd6;
+  --asphalt: #23262c;
+  --stripe: #f2b705;
+  --accent: #b88400;
+  --good: #1d7a45;
+  --good-bg: #e3f4ea;
+  --bad: #b3261e;
+  --bad-bg: #fbe5e3;
+  --display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --body: "Barlow", "Segoe UI", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121418; --surface: #1b1e24; --ink: #eceef0; --muted: #9aa1ab; --line: #2e333b;
+    --asphalt: #0b0c0f; --stripe: #f2b705; --accent: #f2b705;
+    --good: #5fd08f; --good-bg: #13301f; --bad: #ff8a80; --bad-bg: #3a1714; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121418; --surface: #1b1e24; --ink: #eceef0; --muted: #9aa1ab; --line: #2e333b;
+  --asphalt: #0b0c0f; --stripe: #f2b705; --accent: #f2b705;
+  --good: #5fd08f; --good-bg: #13301f; --bad: #ff8a80; --bad-bg: #3a1714; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--stripe); outline-offset: 2px; }
+
+header.road {
+  background: var(--asphalt); color: #f5f5f2;
+  padding-block: 22px 26px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  position: relative; overflow: hidden;
+}
+header.road::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 10px; height: 4px;
+  background: repeating-linear-gradient(90deg, var(--stripe) 0 36px, transparent 36px 64px);
+}
+.wrap { max-width: 860px; margin: 0 auto; }
+header .eyebrow { font-family: var(--display); letter-spacing: .14em; text-transform: uppercase; font-size: 14px; color: var(--stripe); font-weight: 700; }
+header h1 { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 7vw, 52px); line-height: 1; margin: 6px 0 8px; text-wrap: balance; }
+header p { margin: 0; color: #c5c9cf; max-width: 60ch; }
+.home-link { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: inherit; }
+
+main {
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h2 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0 0 4px; letter-spacing: .01em; }
+.sub { color: var(--muted); margin: 0 0 18px; }
+
+.stats { display: flex; flex-wrap: wrap; gap: 10px 28px; margin: 0 0 22px; font-family: var(--display); font-size: 18px; color: var(--muted); }
+.stats b { color: var(--ink); font-size: 26px; font-variant-numeric: tabular-nums; margin-right: 4px; }
+
+.big-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 30px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 8px; border: 2px solid var(--ink); background: transparent;
+  padding: 12px 18px; font-weight: 600; cursor: pointer; min-height: 48px;
+}
+.btn.primary { background: var(--stripe); border-color: var(--stripe); color: #16191f; }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.btn.primary:hover { background: var(--stripe); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.big-actions .btn { flex-direction: column; align-items: flex-start; text-align: left; padding: 14px 18px; }
+.big-actions .btn small { font-weight: 400; font-size: 14px; opacity: .8; }
+
+.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.cat {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.cat h3 { font-family: var(--display); font-weight: 700; font-size: 22px; margin: 0; line-height: 1.1; }
+.cat p { margin: 0; color: var(--muted); font-size: 15px; flex: 1; }
+.cat .meta { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--good); }
+.cat .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.cat .row .btn { flex: 1; min-height: 42px; padding: 8px 12px; font-size: 15px; }
+
+/* Quiz */
+.quiz-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.quiz-top .label { font-family: var(--display); text-transform: uppercase; letter-spacing: .1em; font-size: 14px; color: var(--muted); font-weight: 700; }
+.progress { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin-bottom: 22px; }
+.progress > i { display: block; height: 100%; background: var(--stripe); transition: width .25s; }
+.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+.qnum { font-family: var(--display); font-weight: 700; color: var(--accent); font-size: 16px; letter-spacing: .06em; }
+.qtext { font-size: 21px; font-weight: 600; margin: 4px 0 16px; line-height: 1.35; text-wrap: pretty; }
+.qimg { width: 150px; max-width: 100%; margin: 0 0 16px; }
+.qimg svg { width: 100%; height: auto; display: block; }
+.opts { display: grid; gap: 10px; }
+.opt {
+  display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%;
+  background: var(--bg); border: 2px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor: pointer;
+  font-size: 17px;
+}
+.opt:hover:not([disabled]) { border-color: var(--ink); }
+.opt .key {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--display); font-weight: 700; border: 2px solid currentColor; font-size: 15px;
+}
+.opt[disabled] { cursor: default; }
+.opt.correct { border-color: var(--good); background: var(--good-bg); color: var(--ink); }
+.opt.correct .key { background: var(--good); border-color: var(--good); color: var(--surface); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.opt.wrong .key { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.opt .tag { margin-left: auto; font-size: 13px; font-weight: 600; white-space: nowrap; padding-left: 8px; }
+.opt.correct .tag { color: var(--good); }
+.opt.wrong .tag { color: var(--bad); }
+.feedback { margin-top: 16px; border-radius: 10px; padding: 14px 16px; border-left: 6px solid; }
+.feedback.good { border-color: var(--good); background: var(--good-bg); }
+.feedback.bad { border-color: var(--bad); background: var(--bad-bg); }
+.feedback strong { display: block; font-family: var(--display); font-size: 22px; }
+.feedback.good strong { color: var(--good); }
+.feedback.bad strong { color: var(--bad); }
+.feedback p { margin: 4px 0 0; }
+.qnav { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: 14px; margin-top: 12px; }
+
+/* Results */
+.score { font-family: var(--display); font-weight: 800; font-size: clamp(56px, 14vw, 96px); line-height: 1; font-variant-numeric: tabular-nums; }
+.verdict { font-family: var(--display); font-size: 24px; font-weight: 700; margin: 4px 0 18px; }
+.verdict.good { color: var(--good); } .verdict.bad { color: var(--bad); }
+.review { display: grid; gap: 12px; margin-top: 24px; }
+.ritem { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; gap: 14px; }
+.ritem .mini { width: 64px; flex: none; }
+.ritem .mini svg { width: 100%; height: auto; }
+.ritem .body { min-width: 0; }
+.ritem .q { font-weight: 600; margin-bottom: 4px; }
+.ritem .a { font-size: 15px; }
+.ritem .a.you { color: var(--bad); }
+.ritem .a.ok { color: var(--good); }
+.ritem .e { font-size: 15px; color: var(--muted); margin-top: 4px; }
+
+/* Study list */
+.study { display: grid; gap: 10px; }
+.filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.chip { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 15px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.reveal { margin-top: 6px; }
+.reveal summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 15px; }
+
+.note { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; max-width: 70ch; }
+@media (prefers-reduced-motion: reduce) { .progress > i { transition: none; } }
+@media (max-width: 480px) {
+  .qcard { padding: 16px; }
+  .qtext { font-size: 19px; }
+  .ritem { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<header class="road">
+  <div class="wrap">
+    <button class="home-link" id="homeLink" type="button" aria-label="Back to categories">
+      <div class="eyebrow">Licensing Division · Regulations Exam Practice</div>
+      <h1>T&amp;T Regulations Test Trainer</h1>
+    </button>
+    <p>Multiple-choice practice for the Trinidad and Tobago driver's regulations test: rules of the road, traffic signs, road markings, hand signals and more.</p>
+  </div>
+</header>
+
+<main><div class="wrap" id="app"></div></main>
+
+<script src="questions.js"></script>
+<script src="signs.js"></script>
+<script>
+(function () {
+  var app = document.getElementById("app");
+  var CATS = window.CATEGORIES, QS = window.QUESTIONS;
+  QS.forEach(function (q, i) { q.id = i; });
+  var catById = {}; CATS.forEach(function (c) { catById[c.id] = c; });
+  var MOCK_SIZE = 25;
+  var LETTERS = ["A", "B", "C", "D", "E"];
+
+  /* ---------- saved progress (this browser only) ---------- */
+  var store = { seen: {}, missed: {}, best: {} };
+  try { var raw = localStorage.getItem("tt-regs-v1"); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch (e) {}
+  function save() { try { localStorage.setItem("tt-regs-v1", JSON.stringify(store)); } catch (e) {} }
+
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function inCat(id) { return QS.filter(function (q) { return q.c === id; }); }
+  function mastered(id) { return inCat(id).filter(function (q) { return store.seen[q.id] === 1; }).length; }
+
+  var state = null; // current quiz
+
+  /* ---------- HOME ---------- */
+  function home() {
+    state = null;
+    var missedCount = Object.keys(store.missed).length;
+    var totalMastered = QS.filter(function (q) { return store.seen[q.id] === 1; }).length;
+    var h = '<div class="stats"><span><b>' + QS.length + '</b>questions</span><span><b>' + CATS.length + '</b>categories</span><span><b>' + totalMastered +
+      '</b>answered correctly</span><span><b>' + missedCount + '</b>to review</span></div>';
+    h += '<div class="big-actions">' +
+      '<button class="btn primary" id="mockBtn" type="button">Take a mock test<small>' + MOCK_SIZE + ' random questions from every category</small></button>' +
+      '<button class="btn" id="allBtn" type="button">Practise all questions<small>All ' + QS.length + ' questions, shuffled</small></button>' +
+      '<button class="btn" id="missBtn" type="button"' + (missedCount ? "" : " disabled") + '>Review my mistakes<small>' + (missedCount ? missedCount + " question" + (missedCount > 1 ? "s" : "") + " you got wrong" : "Nothing to review yet") + '</small></button>' +
+      '</div>';
+    h += '<h2>Choose a category</h2><p class="sub">Practise one topic at a time, or open the study list to read every question with its answer.</p><div class="cats">';
+    CATS.forEach(function (c) {
+      var n = inCat(c.id).length, m = mastered(c.id), best = store.best[c.id];
+      h += '<article class="cat"><h3>' + esc(c.name) + '</h3><p>' + esc(c.blurb) + '</p>' +
+        '<div class="meta"><span>' + n + ' questions</span><span>' + (best != null ? "Best " + best + "%" : "Not tried") + '</span></div>' +
+        '<div class="bar" aria-label="' + m + " of " + n + ' answered correctly"><i style="width:' + Math.round(m / n * 100) + '%"></i></div>' +
+        '<div class="row"><button class="btn primary" data-quiz="' + c.id + '" type="button">Practise</button><button class="btn" data-study="' + c.id + '" type="button">Study list</button></div></article>';
+    });
+    h += '</div>';
+    h += '<p class="note">These questions are based on the Trinidad and Tobago Highway Code and the Motor Vehicles and Road Traffic Act. They are written for practice, not copied from the Licensing Division\'s own booklet, so always check against the official study guide and Highway Code sold at the Licensing Office. Your progress is saved in this browser only. ' +
+      '<button class="chip" id="resetBtn" type="button">Reset progress</button></p>';
+    app.innerHTML = h;
+    document.getElementById("mockBtn").onclick = function () { start("mock", shuffle(QS).slice(0, MOCK_SIZE), "Mock test"); };
+    document.getElementById("allBtn").onclick = function () { start("all", shuffle(QS), "All questions"); };
+    document.getElementById("missBtn").onclick = function () {
+      var list = QS.filter(function (q) { return store.missed[q.id]; });
+      if (list.length) start("missed", shuffle(list), "Review my mistakes");
+    };
+    var rb = document.getElementById("resetBtn");
+    rb.onclick = function () {
+      if (rb.dataset.armed) { store = { seen: {}, missed: {}, best: {} }; save(); home(); }
+      else { rb.dataset.armed = "1"; rb.textContent = "Tap again to erase all progress"; }
+    };
+    app.querySelectorAll("[data-quiz]").forEach(function (b) {
+      b.onclick = function () { var id = b.dataset.quiz; start(id, shuffle(inCat(id)), catById[id].name); };
+    });
+    app.querySelectorAll("[data-study]").forEach(function (b) { b.onclick = function () { study(b.dataset.study); }; });
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- QUIZ ---------- */
+  function start(kind, list, title) {
+    state = {
+      kind: kind, title: title, i: 0, answers: [],
+      items: list.map(function (q) {
+        var order = shuffle(q.o.map(function (_, k) { return k; }));
+        return { q: q, order: order };
+      })
+    };
+    renderQ();
+  }
+
+  function renderQ() {
+    var it = state.items[state.i], q = it.q, a = state.answers[state.i];
+    var answered = a != null, n = state.items.length;
+    var h = '<div class="quiz-top"><span class="label">' + esc(state.title) + '</span><button class="btn" id="quitBtn" type="button">End &amp; see results</button></div>';
+    h += '<div class="progress" aria-hidden="true"><i style="width:' + ((state.i + (answered ? 1 : 0)) / n * 100) + '%"></i></div>';
+    h += '<section class="qcard" aria-live="polite"><div class="qnum">QUESTION ' + (state.i + 1) + ' OF ' + n +
+      (!catById[state.kind] ? " · " + esc(catById[q.c].name.toUpperCase()) : "") + '</div>';
+    h += '<div class="qtext">' + esc(q.q) + '</div>';
+    if (q.img) h += '<div class="qimg">' + window.SIGN(q.img) + '</div>';
+    h += '<div class="opts">';
+    it.order.forEach(function (orig, k) {
+      var cls = "", tag = "";
+      if (answered) {
+        if (orig === 0) { cls = " correct"; tag = a === orig ? "Your answer ✓" : "Correct answer"; }
+        else if (a === orig) { cls = " wrong"; tag = "Your answer ✗"; }
+      }
+      h += '<button class="opt' + cls + '" type="button" data-k="' + orig + '"' + (answered ? " disabled" : "") + '><span class="key">' + LETTERS[k] + '</span><span>' + esc(q.o[orig]) + '</span>' + (tag ? '<span class="tag">' + tag + '</span>' : "") + '</button>';
+    });
+    h += '</div>';
+    if (answered) {
+      var ok = a === 0;
+      h += '<div class="feedback ' + (ok ? "good" : "bad") + '"><strong>' + (ok ? "Correct!" : "Wrong") + '</strong>' +
+        (ok ? "" : '<p>The correct answer is: <b>' + esc(q.o[0]) + '</b></p>') + (q.e ? '<p>' + esc(q.e) + '</p>' : "") + '</div>';
+    }
+    h += '<div class="qnav"><button class="btn" id="prevBtn" type="button"' + (state.i === 0 ? " disabled" : "") + '>← Previous</button>' +
+      '<button class="btn primary" id="nextBtn" type="button"' + (answered ? "" : " disabled") + '>' + (state.i === n - 1 ? "See results" : "Next question →") + '</button></div>';
+    h += '</section><p class="hint">Tip: press 1–4 (or A–D) to answer and Enter for the next question.</p>';
+    app.innerHTML = h;
+
+    app.querySelectorAll(".opt").forEach(function (b) { b.onclick = function () { choose(+b.dataset.k); }; });
+    document.getElementById("prevBtn").onclick = function () { if (state.i > 0) { state.i--; renderQ(); } };
+    document.getElementById("nextBtn").onclick = next;
+    document.getElementById("quitBtn").onclick = results;
+    var top = app.querySelector(".quiz-top");
+    if (top.getBoundingClientRect().top < 0) top.scrollIntoView();
+  }
+
+  function choose(orig) {
+    if (state.answers[state.i] != null) return;
+    var q = state.items[state.i].q;
+    state.answers[state.i] = orig;
+    if (orig === 0) { store.seen[q.id] = 1; delete store.missed[q.id]; }
+    else { store.seen[q.id] = 0; store.missed[q.id] = 1; }
+    save();
+    renderQ();
+  }
+  function next() {
+    if (state.answers[state.i] == null) return;
+    if (state.i < state.items.length - 1) { state.i++; renderQ(); } else results();
+  }
+
+  /* ---------- RESULTS ---------- */
+  function results() {
+    var done = 0, right = 0, wrongs = [];
+    state.items.forEach(function (it, i) {
+      var a = state.answers[i]; if (a == null) return;
+      done++; if (a === 0) right++; else wrongs.push({ q: it.q, a: a });
+    });
+    var pct = done ? Math.round(right / done * 100) : 0;
+    if (catById[state.kind] && done === state.items.length) {
+      store.best[state.kind] = Math.max(store.best[state.kind] || 0, pct); save();
+    }
+    var good = pct >= 80;
+    var h = '<div class="quiz-top"><span class="label">' + esc(state.title) + ' · Results</span></div>';
+    h += '<div class="score">' + right + '/' + done + '</div>';
+    h += '<div class="verdict ' + (good ? "good" : "bad") + '">' + pct + '% · ' + (done === 0 ? "No questions answered" : good ? "Well done. Keep it up!" : "Keep practising. Review the answers below.") + '</div>';
+    if (done < state.items.length) h += '<p class="sub">You answered ' + done + ' of ' + state.items.length + ' questions.</p>';
+    h += '<div class="row" style="display:flex;gap:10px;flex-wrap:wrap">' +
+      (wrongs.length ? '<button class="btn primary" id="retryWrong" type="button">Retry the ' + wrongs.length + ' I got wrong</button>' : "") +
+      '<button class="btn" id="again" type="button">Start again</button><button class="btn" id="home2" type="button">All categories</button></div>';
+    if (wrongs.length) {
+      h += '<h2 style="margin-top:28px">Questions you got wrong</h2><div class="review">';
+      wrongs.forEach(function (w) {
+        h += '<div class="ritem">' + (w.q.img ? '<div class="mini">' + window.SIGN(w.q.img) + '</div>' : "") + '<div class="body"><div class="q">' + esc(w.q.q) + '</div>' +
+          '<div class="a you">Your answer: ' + esc(w.q.o[w.a]) + '</div><div class="a ok">Correct answer: ' + esc(w.q.o[0]) + '</div>' +
+          (w.q.e ? '<div class="e">' + esc(w.q.e) + '</div>' : "") + '</div></div>';
+      });
+      h += '</div>';
+    }
+    app.innerHTML = h;
+    var prev = state;
+    if (wrongs.length) document.getElementById("retryWrong").onclick = function () { start(prev.kind, shuffle(wrongs.map(function (w) { return w.q; })), prev.title + " · retry"); };
+    document.getElementById("again").onclick = function () { start(prev.kind, shuffle(prev.items.map(function (it) { return it.q; })), prev.title); };
+    document.getElementById("home2").onclick = home;
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- STUDY LIST ---------- */
+  function study(catId) {
+    state = null;
+    var h = '<div class="quiz-top"><span class="label">Study list</span><button class="btn" id="back" type="button">← Categories</button></div>';
+    h += '<h2>' + esc(catById[catId].name) + '</h2><p class="sub">Read each question, then open the answer. When you feel ready, practise with the multiple-choice quiz.</p>';
+    h += '<div class="filter">';
+    CATS.forEach(function (c) { h += '<button class="chip" type="button" data-cat="' + c.id + '" aria-pressed="' + (c.id === catId) + '">' + esc(c.name) + '</button>'; });
+    h += '</div><div class="study">';
+    inCat(catId).forEach(function (q, i) {
+      h += '<div class="ritem">' + (q.img ? '<div class="mini">' + window.SIGN(q.img) + '</div>' : "") + '<div class="body"><div class="q">' + (i + 1) + '. ' + esc(q.q) + '</div>' +
+        '<details class="reveal"><summary>Show answer</summary><div class="a ok"><b>' + esc(q.o[0]) + '</b></div>' + (q.e ? '<div class="e">' + esc(q.e) + '</div>' : "") + '</details></div></div>';
+    });
+    h += '</div><div class="qnav"><button class="btn primary" id="practise" type="button">Practise this category</button></div>';
+    app.innerHTML = h;
+    document.getElementById("back").onclick = home;
+    document.getElementById("practise").onclick = function () { start(catId, shuffle(inCat(catId)), catById[catId].name); };
+    app.querySelectorAll("[data-cat]").forEach(function (b) { b.onclick = function () { study(b.dataset.cat); }; });
+    window.scrollTo(0, 0);
+  }
+
+  document.getElementById("homeLink").onclick = home;
+  document.addEventListener("keydown", function (e) {
+    if (!state || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!app.querySelector(".opts")) return;
+    var k = e.key.toUpperCase(), idx = "1234".indexOf(k);
+    if (idx < 0) idx = "ABCD".indexOf(k);
+    if (idx >= 0 && k.length === 1) {
+      var btns = app.querySelectorAll(".opt"); if (btns[idx] && !btns[idx].disabled) btns[idx].click();
+    } else if (e.key === "Enter" && state.answers[state.i] != null && e.target.tagName !== "BUTTON") { next(); }
+  });
+  home();
+})();
+</script>
+</body>
+</html>
